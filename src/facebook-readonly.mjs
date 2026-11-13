@@ -1,8 +1,12 @@
 const PAGE_ID="296758006853316";
 const HOST="https://graph.facebook.com";
 export async function checkFacebookPage({env=process.env,fetchImpl=globalThis.fetch}={}) {
- if(env.AUTO_PUBLISH_ENABLED!=="false"||env.FACEBOOK_PUBLISH_ENABLED!=="false")
-   throw Error("Read-only verification requires publishing disabled");
+ // Undefined means disabled for read-only checks. Explicit "true" or invalid
+ // non-empty values are rejected to avoid accidental publishing-mode confusion.
+ for (const key of ["AUTO_PUBLISH_ENABLED","FACEBOOK_PUBLISH_ENABLED"]) {
+   if (env[key] !== undefined && env[key] !== "" && env[key] !== "false")
+     throw Error("Read-only verification requires publishing disabled");
+ }
  if(env.FACEBOOK_PAGE_ID!==PAGE_ID) throw Error("Unexpected Facebook Page ID");
  if(!env.FACEBOOK_PAGE_ACCESS_TOKEN) throw Error("Missing Page Access Token");
  const url=new URL(HOST+"/v24.0/"+PAGE_ID);
