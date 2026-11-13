@@ -1,27 +1,29 @@
-# Phase D.9 – GitHub-only durable publishing (staged; NOT ACTIVATED)
+# Phase D.9 – GitHub-only automated publishing: release gated
 
-## What is implemented
-- Atomic GitHub `POST /git/refs` claim per date/slot; a duplicate ref prevents a second attempt. State markers `published`, `failed`, `unknown` are append-only. Claimed refs are permanent.
-- `src/slot-runner.mjs` wires claims before Cloudinary and Facebook. If the Facebook request is ambiguous, mark UNKNOWN. A failed status write does not unlock the slot.
-- Delayed GitHub schedules are accepted only during the same-day 3-hour window: 06:00–08:59 and 19:30–22:29 Vietnam. Outside this window: OUTSIDE_SLOT.
-- `test/phase-d9-hardening.test.mjs` checks boundaries, no duplicate side effects, FAILED, UNKNOWN, and marker failures.
-- GitHub workflow is deliberately inactive; the existing dry-run workflow cannot publish.
+## Completed
+- Atomic GitHub ref claim before external side effects, terminal state markers, at-most-once attempt.
+- Vietnam windows 06:00–08:59 and 19:30–22:29, accommodating bounded GitHub cron delays.
+- Curated original editorial bank: 12 morning and 12 evening messages, deterministic rotation. No fabricated religious quotations.
+- Scheduled production workflow at 23:00 and 12:30 UTC, plus manual dispatch. **Requires merge into default branch and LIVE_PUBLISH_RELEASE=true.** If the variable is missing/false, job is skipped and no Facebook write is possible.
+- Read-only Facebook Page verification and required-secret presence check before each attempt.
+- Mock unit tests for idempotency, failures, slot windows and editorial uniqueness.
 
 ## Important limitations
-- At-most-once *attempt*, not exactly-once publication: a crash after claiming can cause a missed post.
-- The current content bank contains four morning and four evening entries, repeating frequently; improve editorial diversity before activation.
-- Real GitHub API concurrency and permission testing have not been performed; mocked tests alone do not prove live behavior.
-- Graph API version, token lifetime, Cloudinary secrets and live Facebook publish have not been validated in this environment.
-- GitHub Actions cron is best-effort and may be delayed or skipped. Workflow must be merged to default branch for schedule activation.
-- No automatic retry or deletion of claimed refs. Resolve missed/UNKNOWN slots manually.
+- GitHub scheduled runs are best-effort; they may be delayed or skipped. A delay beyond 3 hours skips the slot.
+- At-most-once attempts are not guaranteed delivery: an interrupted run can leave a claim and no Facebook post.
+- Real GitHub API concurrency and live Facebook photo POST have not been verified. A successful Page GET does not verify posting permissions at runtime.
+- Token expiry, app access and Cloudinary upload failure require monitoring. This code does not renew Page tokens.
+- GitHub ref status markers do not store the Facebook post ID; review the Page directly.
+- The production workflow must be merged to main before GitHub cron runs. The old DRY_RUN schedule remains active after merge unless removed in a separate cleanup.
+- No external paid API is required, but service usage limits still apply.
 
-## Release checklist
-1. Run `npm test`.
-2. Verify the GitHub Actions token can create a disposable ref in a test repo.
-3. Confirm all three secrets: `FACEBOOK_PAGE_ACCESS_TOKEN`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
-4. Verify Page token, image URL and Meta Graph API compatibility.
-5. Review content bank and image quality.
-6. Prepare separate activation PR with real cron triggers, protected release variable and operational alerts.
-7. Merge activation change only when operational checks pass. User's chosen policy is post-first, review-after; no per-post approvals are required.
+## Before activation
+1. Run `npm ci && npm test` on the branch.
+2. In GitHub Actions secrets verify `FACEBOOK_PAGE_ACCESS_TOKEN`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Do not paste them into chat or repository files.
+3. Verify GitHub Actions has `contents: write` access and GitHub's `POST /git/refs` works with a disposable test ref.
+4. Check Graph API version compatibility and perform a controlled publishing integration test only if desired; user chose post-first/review-after and no per-post approval.
+5. Merge PR after code review; set repository Actions variable `LIVE_PUBLISH_RELEASE=true` to enable automatic publishing. Setting it false disables future publishing jobs without removing schedules.
+6. Review workflow results and Page posts after first live run.
 
-No secrets are stored in the repository and no Facebook write has been executed.
+## Safety
+No tokens committed. No live Facebook post made in this change. Draft PR remains unmerged.

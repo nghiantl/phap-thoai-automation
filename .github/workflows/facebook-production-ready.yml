@@ -1,10 +1,9 @@
-name: Facebook D.9 publish pipeline (NOT ACTIVATED)
-# Intentionally NO schedule or workflow_dispatch until release review.
-# A future activation PR must add triggers and set LIVE_PUBLISH_RELEASE=true.
+name: Facebook production publishing (release gated)
 on:
-  push:
-    branches:
-      - never-activate-facebook-d9
+  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *"
+    - cron: "30 12 * * *"
 permissions:
   contents: write
 concurrency:
@@ -14,6 +13,7 @@ jobs:
   publish:
     if: ${{ vars.LIVE_PUBLISH_RELEASE == 'true' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       AUTO_PUBLISH_ENABLED: "true"
       FACEBOOK_PUBLISH_ENABLED: "true"
@@ -28,7 +28,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - run: npm test
-      - name: Publish one eligible slot with durable GitHub ref claim
+      - name: Read-only preflight (no Facebook writes)
+        run: node scripts/check-production-readiness.mjs
+      - name: Publish eligible Vietnam slot with GitHub atomic claim
         run: node scripts/run-facebook-slot.mjs
