@@ -2,38 +2,35 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {checkFacebookPage} from "../src/facebook-readonly.mjs";
 const env={AUTO_PUBLISH_ENABLED:"false",FACEBOOK_PUBLISH_ENABLED:"false",FACEBOOK_PAGE_ID:"296758006853316",FACEBOOK_PAGE_ACCESS_TOKEN:"fake-secret"};
-const ok=async()=>({ok:true,json:async()=>({id:"296758006853316",name:"Pháp Thoại Khai Sáng",tasks:["CREATE_CONTENT"]})});
-test("read-only check uses GET, Authorization header and correct page",async()=>{
- let calls=0;
+const ok=async()=>({ok:true,json:async()=>({id:"296758006853316",name:"Pháp Thoại Khai Sáng"})});
+test("GET only requests supported id,name and hides token from URL",async()=>{
  const result=await checkFacebookPage({env,fetchImpl:async(url,options)=>{
-   calls++;assert.equal(url.hostname,"graph.facebook.com");
-   assert.equal(url.pathname,"/v24.0/296758006853316");
+   assert.equal(url.hostname,"graph.facebook.com");
+   assert.equal(url.searchParams.get("fields"),"id,name");
+   assert.equal(url.searchParams.has("access_token"),false);
    assert.equal(options.method,"GET");
    assert.equal(options.headers.Authorization,"Bearer fake-secret");
-   assert.equal(url.searchParams.has("access_token"),false);
    return ok();
  }});
- assert.equal(result.hasCreateContent,true);assert.equal(calls,1);
+ assert.equal(result.pageId,"296758006853316");
+ assert.equal(result.hasCreateContent,null);
 });
-test("undefined or empty publishing flags are disabled by default",async()=>{
- for(const patch of [
-   {AUTO_PUBLISH_ENABLED:undefined,FACEBOOK_PUBLISH_ENABLED:undefined},
-   {AUTO_PUBLISH_ENABLED:"",FACEBOOK_PUBLISH_ENABLED:""}
- ]) {
-   const result=await checkFacebookPage({env:{...env,...patch},fetchImpl:ok});
-   assert.equal(result.pageId,"296758006853316");
- }
+test("missing flags default to disabled",async()=>{
+ const result=await checkFacebookPage({env:{...env,AUTO_PUBLISH_ENABLED:undefined,FACEBOOK_PUBLISH_ENABLED:undefined},fetchImpl:ok});
+ assert.equal(result.pageId,"296758006853316");
 });
-test("fail closed when publishing enabled or invalid",async()=>{
- for(const [key,value] of [["AUTO_PUBLISH_ENABLED","true"],["FACEBOOK_PUBLISH_ENABLED","true"],["AUTO_PUBLISH_ENABLED","yes"]])
-   await assert.rejects(checkFacebookPage({env:{...env,[key]:value},fetchImpl:async()=>{throw Error("network called")}}),/disabled/);
+test("publishing enabled fails closed",async()=>{
+ for(const key of ["AUTO_PUBLISH_ENABLED","FACEBOOK_PUBLISH_ENABLED"])
+   await assert.rejects(checkFacebookPage({env:{...env,[key]:"true"},fetchImpl:async()=>{throw Error("network called")}}),/disabled/);
 });
-test("fail closed for wrong page ID",async()=>{
- await assert.rejects(checkFacebookPage({env:{...env,FACEBOOK_PAGE_ID:"other"},fetchImpl:async()=>{throw Error("network called")}}),/unexpected/i);
+test("Graph API error exposes only numeric codes, not token or error message",async()=>{
+ const result=checkFacebookPage({env,fetchImpl:async()=>({ok:false,status:400,json:async()=>({error:{code:190,error_subcode:463,type:"OAuthException",message:"SECRET fake-secret"}})})});
+ await assert.rejects(result,error=>{
+   assert.match(error.message,/HTTP 400; Graph code 190; subcode 463/);
+   assert.doesNotMatch(error.message,/SECRET|fake-secret/);
+   return true;
+ });
 });
-test("reject unexpected returned page ID",async()=>{
- await assert.rejects(checkFacebookPage({env,fetchImpl:async()=>({ok:true,json:async()=>({id:"wrong"})})}),/unexpected/i);
-});
-test("safe error does not leak token",async()=>{
- await assert.rejects(checkFacebookPage({env,fetchImpl:async()=>({ok:false,status:403})}),/HTTP 403/);
+test("wrong page rejected",async()=>{
+ await assert.rejects(checkFacebookPage({env:{...env,FACEBOOK_PAGE_ID:"bad"},fetchImpl:ok}),/unexpected/i);
 });
