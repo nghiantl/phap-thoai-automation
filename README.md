@@ -1,45 +1,42 @@
-# Pháp Thoại Khai Sáng – Phase D.2
+# Pháp Thoại Khai Sáng – Phase D.3
 
-Generate **1080 × 1350** Buddhist lotus artwork for free with Sharp/SVG, upload it to Cloudinary, and safely prepare or update **existing** Metricool Facebook drafts. No OpenAI Image API is used.
+Free Sharp/SVG images (1080×1350) → Cloudinary → safe Metricool Facebook draft workflow.
 
 ## Safety
+- `AUTO_PUBLISH_ENABLED=false` is mandatory. `METRICOOL_DRAFT_WRITES_ENABLED=false` by default.
+- No cron, Vercel route, automated execution, Facebook publishing, scheduling or merge.
+- `src/metricool-api.mjs` implements an independently callable **official Metricool API adapter**, with strict brand/page checks, fixed HTTPS host, token header, GET list and guarded PUT update.
+- `src/metricool-integration.mjs` checks draft identity, UUID, text/time, existing media, and read-back. The transport adapter is not automatically invoked.
+- Metricool's direct API currently requires an Advanced or Custom subscription; connected ChatGPT Metricool tools are a separate integration.
+- Keep `METRICOOL_API_TOKEN` and `METRICOOL_USER_ID` in local environment or Vercel project settings, never GitHub.
 
-- `AUTO_PUBLISH_ENABLED=false` is mandatory for image creation and Metricool draft handling.
-- `METRICOOL_DRAFT_WRITES_ENABLED=false` by default. A real write requires explicit `allowWrite:true`, `METRICOOL_DRAFT_WRITES_ENABLED=true`, and an injected verified Metricool adapter.
-- Only the expected brand `8074409`, Facebook Page `296758006853316`, Facebook POST drafts, and timezone `Asia/Ho_Chi_Minh` are permitted.
-- Existing drafts are located by UUID; changed IDs, content, or media are rejected. No automatic duplicate creation. The update is read back and checked.
-- No cron, public endpoint, publishing or scheduling. PR stays Draft.
-
-## Setup and local tests
-
-Node.js 20+. Copy `.env.example` to `.env`, set Cloudinary keys, and run:
-
+## Install and test
 ```bash
 npm install
 npm test
 npm run generate:image -- morning "Bình an bắt đầu từ chính tâm mình"
 npm run generate:image -- evening "Đêm xuống rồi, hãy để lòng bình yên"
-npm run generate:image -- morning "Bình an bắt đầu từ chính tâm mình" upload
 ```
+Update and commit `package-lock.json` after npm install before configuring CI.
 
-`npm install` regenerates the removed stale package lock. Check Vietnamese fonts in local previews.
-
-## Metricool draft preview
-
+## Metricool read-only smoke test
+If your Metricool plan provides API access, set the values in `.env`:
+```env
+METRICOOL_USER_ID=your_user_id
+METRICOOL_API_TOKEN=your_api_token
+METRICOOL_BLOG_ID=8074409
+FACEBOOK_PAGE_ID=296758006853316
+AUTO_PUBLISH_ENABLED=false
+METRICOOL_DRAFT_WRITES_ENABLED=false
+```
+Then run:
 ```bash
-npm run draft:preview -- "https://res.cloudinary.com/yiygxwxc/image/upload/v1794543552/phap-thoai-khai-sang/post-test-1794543549446.png" "2026-11-15T06:00:00+07:00"
+node scripts/metricool-safe-check.mjs "2026-11-15T00:00:00" "2026-11-16T00:00:00"
 ```
+This lists draft metadata without any write. The independent API adapter is not yet deployed to Vercel; no API credentials have been supplied or used in this PR.
 
-To preview an **existing** draft update, save the exact latest Metricool draft JSON (without account credentials) to `draft.json`, then:
+## Existing live verification
+Morning Metricool draft UUID `-2137464596706156`, ID `426529682`, already has the Cloudinary image and remains `draft=true`, `autoPublish=false`. Evening draft remains unchanged.
 
-```bash
-node scripts/preview-metricool-update.mjs ./draft.json "https://res.cloudinary.com/yiygxwxc/image/upload/v1794543552/phap-thoai-khai-sang/post-test-1794543549446.png"
-```
-
-This only prints a safe request. The `src/metricool-integration.mjs` module accepts a trusted Metricool transport with `listDrafts()` and `updateDraft()` for later integration; it does **not** guess undocumented API endpoints or store credentials.
-
-## Live draft verification (2026-11-13)
-
-The connected Metricool app successfully updated morning draft UUID `-2137464596706156`, now ID `426529682`, preserving 06:00 Vietnam time, `draft=true` and `autoPublish=false`. Metricool stored the Cloudinary image as its own media URL. Evening draft UUID `5965844497316925114` remains unchanged.
-
-This branch does not automatically execute Metricool API calls. Review and test before merging.
+## Next validation
+Confirm API plan access, run read-only smoke test and tests, then review a separate controlled draft-only Vercel endpoint. Do not enable publishing.
