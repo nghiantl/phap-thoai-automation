@@ -1,0 +1,24 @@
+name: Facebook D.8 safety verification (DRY RUN only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: facebook-production-readiness
+  cancel-in-progress: false
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    env:
+      AUTO_PUBLISH_ENABLED: "false"
+      FACEBOOK_PUBLISH_ENABLED: "false"
+      FACEBOOK_PAGE_ID: "296758006853316"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - name: Preview with no network publishing
+        run: node scripts/run-facebook-slot.mjs

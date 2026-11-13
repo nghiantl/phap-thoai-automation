@@ -1,0 +1,37 @@
+name: Prepare Metricool draft CSV (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      plan_path:
+        description: "Path to reviewed JSON plan (no automatic publishing)"
+        required: true
+        default: "content/draft-plan.example.json"
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      AUTO_PUBLISH_ENABLED: "false"
+      METRICOOL_DRAFT_WRITES_ENABLED: "false"
+      CLOUDINARY_CLOUD_NAME: yiygxwxc
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - name: Verify official Metricool CSV template exists
+        run: test -f metricool-template.csv
+      - name: Build Cloudinary images and draft CSV
+        env:
+          PLAN_PATH: ${{ inputs.plan_path }}
+        run: node scripts/build-draft-bundle.mjs "$PLAN_PATH"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: metricool-draft-csv
+          path: dist/
+          retention-days: 7

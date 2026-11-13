@@ -1,0 +1,36 @@
+name: Facebook production publishing (release gated)
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 23 * * *"
+    - cron: "30 12 * * *"
+permissions:
+  contents: write
+concurrency:
+  group: facebook-publish-serialized
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: ${{ vars.LIVE_PUBLISH_RELEASE == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      AUTO_PUBLISH_ENABLED: "true"
+      FACEBOOK_PUBLISH_ENABLED: "true"
+      PUBLISH_CONFIRMATION: "I_APPROVE_FACEBOOK_POSTING"
+      FACEBOOK_PAGE_ID: "296758006853316"
+      FACEBOOK_PAGE_ACCESS_TOKEN: ${{ secrets.FACEBOOK_PAGE_ACCESS_TOKEN }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - name: Read-only preflight (no Facebook writes)
+        run: node scripts/check-production-readiness.mjs
+      - name: Publish eligible Vietnam slot with GitHub atomic claim
+        run: node scripts/run-facebook-slot.mjs

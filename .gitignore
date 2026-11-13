@@ -396,3 +396,8 @@ opencode.jsonc
 AGENTS.md
 # jest transform cache (cached by the pipeline, never committed)
 .jest-cache/
+
+# Generated previews and environment variants
+.env.*
+!.env.example
+preview-*.png
