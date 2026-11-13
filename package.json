@@ -4,7 +4,7 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test test/*.test.mjs",
     "generate:image": "node scripts/generate-image.mjs",
     "draft:preview": "node scripts/preview-draft.mjs"
   },
