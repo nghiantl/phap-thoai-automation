@@ -2,7 +2,6 @@ import {buildPost} from "./content-engine.mjs";
 import {createImageBuffer} from "./image.mjs";
 import {publishFacebookPhoto,assertPublishConfig} from "./facebook-publisher.mjs";
 import {v2 as cloudinary} from "cloudinary";
-import {randomUUID} from "node:crypto";
 
 export function vietnamSlot(now=new Date()) {
  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Ho_Chi_Minh",
@@ -18,25 +17,31 @@ export async function runSlot({now=new Date(),env=process.env,publish=publishFac
  if(!period) return {status:"OUTSIDE_SLOT",date};
  const post=buildPost({date,period});
  const key=date+"-"+period;
- // Dry-run is intentionally fully offline: no image upload, Facebook request or secret access.
+ // Offline DRY_RUN; no secrets, ledger, Cloudinary or Facebook network requests.
  if(env.AUTO_PUBLISH_ENABLED!=="true") return {status:"DRY_RUN",key,post};
  assertPublishConfig(env);
  if(!ledger||typeof ledger.claim!=="function"||typeof ledger.finish!=="function")
    throw Error("Durable ledger is required before publishing");
+ if(!env.CLOUDINARY_API_KEY||!env.CLOUDINARY_API_SECRET)
+   throw Error("Cloudinary secrets missing");
+ // Acquire the durable, atomic claim BEFORE any external side effects.
  const claimed=await ledger.claim(key);
  if(!claimed) return {status:"ALREADY_CLAIMED",key};
+ let facebookAttempted=false;
  try {
    const png=await render(post);
    cloudinary.config({cloud_name:"yiygxwxc",api_key:env.CLOUDINARY_API_KEY,api_secret:env.CLOUDINARY_API_SECRET,secure:true});
-   if(!env.CLOUDINARY_API_KEY||!env.CLOUDINARY_API_SECRET) throw Error("Cloudinary secrets missing");
    const result=await uploader.upload("data:image/png;base64,"+png.toString("base64"),{
-     folder:"phap-thoai-khai-sang",public_id:"auto-"+key+"-"+randomUUID(),overwrite:false,resource_type:"image"
+     folder:"phap-thoai-khai-sang",public_id:"auto-"+key,overwrite:false,resource_type:"image"
    });
+   facebookAttempted=true;
    const published=await publish({imageUrl:result.secure_url,message:post.text,env});
    await ledger.finish(key,{status:"PUBLISHED",...published});
    return {status:"PUBLISHED",key,...published};
  } catch(error) {
-   // Claim intentionally remains locked: retry only after manual reconciliation.
+   // After a Facebook request, even an HTTP error can be ambiguous. Never retry.
+   try {await ledger.finish(key,{status:facebookAttempted?"UNKNOWN":"FAILED"});}
+   catch { /* claim ref still permanently blocks retries */ }
    throw error;
  }
 }
