@@ -1,25 +1,36 @@
-# Pháp Thoại Khai Sáng – Phase D
+# Pháp Thoại Khai Sáng – Phase D (free image generation)
 
-A **fail-closed** pipeline to generate an OpenAI image, upload it to Cloudinary, and preview a Metricool Facebook draft. **Nothing in this branch publishes or schedules Facebook posts.**
+This branch replaces the paid OpenAI Image API with **Sharp + original SVG artwork**. Two palettes (morning/evening) with two variations each, lotus artwork, typography and gradients. Images are **1080 × 1350 PNG**. The original backgrounds are generated from SVG; no stock images or image API licenses are needed.
 
-## Setup
+**No Metricool writes, Facebook publishing, scheduling or cron are enabled.** All code requires `AUTO_PUBLISH_ENABLED=false`. Existing Metricool draft preview remains read-only.
 
-Use Node.js 20+, then `npm install`. Copy `.env.example` to `.env` and set `OPENAI_API_KEY`, Cloudinary API key/secret, while keeping `AUTO_PUBLISH_ENABLED=false`. Never commit secrets.
+## Requirements
 
-Cloudinary cloud: `yiygxwxc` · Metricool brand: `8074409` · Facebook page: `296758006853316`.
+Node.js 20+, `npm install`, then `npm test`. Copy `.env.example` to `.env`. Do not commit secrets.
 
-## Commands
+## Local previews (free, no credentials)
 
-- `npm test`: mock tests for safety guards and the image pipeline (no paid API calls).
-- `npm run generate:image -- "Bình an và chánh niệm"`: generate an image and upload it to Cloudinary (real API charges apply).
-- `npm run draft:preview -- "https://res.cloudinary.com/yiygxwxc/image/upload/v.../photo.png" "2026-11-15T06:00:00+07:00"`: build a draft payload locally **without** sending to Metricool.
+```bash
+npm run generate:image -- morning "Bình an bắt đầu từ chính tâm mình"
+npm run generate:image -- evening "Đêm xuống rồi, hãy để lòng bình yên"
+```
 
-## Safe rollout
+These create `preview-morning.png` and `preview-evening.png` locally. Review Vietnamese typography; install Noto Sans if your environment lacks a Vietnamese-capable font. Do not attribute invented quotes to the Buddha.
 
-1. Run automated tests and manually generate one image.
-2. Verify Cloudinary HTTPS image accessibility and composition.
-3. Preview two post payloads with `draft: true` and `autoPublish: false`.
-4. Next phase: implement audited Metricool draft writes, idempotency and read-back verification.
-5. Require separate approval before any scheduling or publishing.
+## Cloudinary upload (uses free-tier quota)
 
-No cron and no public endpoint are added here. Existing `test-cloudinary.mjs` is unchanged.
+Set Cloudinary environment variables locally and keep `AUTO_PUBLISH_ENABLED=false`.
+
+```bash
+npm run generate:image -- morning "Bình an bắt đầu từ chính tâm mình" upload
+```
+
+The command uploads one image to Cloudinary cloud `yiygxwxc` and prints `imageUrl`. It does not call Metricool. Cloudinary free-tier limits may apply.
+
+## Metricool draft preview (no writes)
+
+```bash
+npm run draft:preview -- "https://res.cloudinary.com/yiygxwxc/image/upload/v.../photo.png" "2026-11-15T06:00:00+07:00"
+```
+
+Next phase: explicit Metricool draft-write integration, idempotency, read-back verification and deployment, with separate approval. This PR must remain Draft and must not be merged without review.
