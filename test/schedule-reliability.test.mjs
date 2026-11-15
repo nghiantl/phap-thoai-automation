@@ -5,17 +5,17 @@ import {vietnamSlot,runSlot} from "../src/slot-runner.mjs";
 
 const yaml=readFileSync(new URL("../.github/workflows/facebook-production-ready.yml",import.meta.url),"utf8");
 const cron=[...yaml.matchAll(/^\s+- cron: "([^"]+)"$/gm)].map(m=>m[1]);
-const expected=["*/10 23,0,1 * * *","30,40,50 12 * * *","*/10 13,14 * * *","0,10,20 15 * * *"];
-test("production cron covers morning and evening with 10-minute retry opportunities",()=>{
+const expected=["7,17,27,37,47,57 23,0,1 * * *","37,47,57 12 * * *","7,17,27,37,47,57 13,14 * * *","7,17,27 15 * * *"];
+test("production cron provides staggered opportunities inside Vietnam slots",()=>{
  assert.deepEqual(cron,expected);
  assert.match(yaml,/vars\.LIVE_PUBLISH_RELEASE == 'true'/);
  assert.match(yaml,/cancel-in-progress: false/);
  assert.match(yaml,/contents: write/);
- // 24h UTC simulation: all scheduled triggers are inside the intended ICT windows.
  const times=[];
- for(let hour=0;hour<24;hour++) for(let minute=0;minute<60;minute+=10) {
-   const isScheduled=[23,0,1,13,14].includes(hour)||
-     (hour===12&&minute>=30)||(hour===15&&minute<=20);
+ for(let hour=0;hour<24;hour++) for(let minute=0;minute<60;minute++) {
+   const isScheduled=([23,0,1,13,14].includes(hour)&&[7,17,27,37,47,57].includes(minute))||
+     (hour===12&&[37,47,57].includes(minute))||
+     (hour===15&&[7,17,27].includes(minute));
    if(!isScheduled) continue;
    const at=new Date(Date.UTC(2026,10,14,hour,minute));
    const slot=vietnamSlot(at);

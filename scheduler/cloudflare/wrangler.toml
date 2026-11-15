@@ -1,0 +1,13 @@
+name = "phap-thoai-schedule-fallback"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+# UTC; every 10 minutes within the original Vietnam publication windows.
+# Worker and native GitHub cron are staggered to reduce correlated delays.
+[triggers]
+crons = [
+  "0,10,20,30,40,50 23,0,1 * * *",
+  "30,40,50 12 * * *",
+  "0,10,20,30,40,50 13,14 * * *",
+  "0,10,20 15 * * *"
+]
