@@ -3,16 +3,21 @@ import assert from "node:assert/strict";
 import {vietnamSlot,runSlot} from "../src/slot-runner.mjs";
 const env={AUTO_PUBLISH_ENABLED:"true",FACEBOOK_PUBLISH_ENABLED:"true",PUBLISH_CONFIRMATION:"I_APPROVE_FACEBOOK_POSTING",FACEBOOK_PAGE_ID:"296758006853316",FACEBOOK_PAGE_ACCESS_TOKEN:"test-token",CLOUDINARY_API_KEY:"test",CLOUDINARY_API_SECRET:"test"};
 const at=(s)=>new Date(s);
-test("delayed GitHub schedule remains eligible for three hours",()=>{
+test("expanded Vietnam publishing windows include late scheduled executions",()=>{
  assert.equal(vietnamSlot(at("2026-11-16T23:00:00Z")).period,"morning");
  assert.equal(vietnamSlot(at("2026-11-17T01:59:00Z")).period,"morning");
- assert.equal(vietnamSlot(at("2026-11-17T02:00:00Z")).period,null);
+ assert.equal(vietnamSlot(at("2026-11-17T02:00:00Z")).period,"morning");
+ assert.equal(vietnamSlot(at("2026-11-17T04:59:00Z")).period,"morning");
+ assert.equal(vietnamSlot(at("2026-11-17T05:00:00Z")).period,null);
+ assert.equal(vietnamSlot(at("2026-11-17T11:00:00Z")).period,"evening");
  assert.equal(vietnamSlot(at("2026-11-17T12:30:00Z")).period,"evening");
  assert.equal(vietnamSlot(at("2026-11-17T15:29:00Z")).period,"evening");
- assert.equal(vietnamSlot(at("2026-11-17T15:30:00Z")).period,null);
+ assert.equal(vietnamSlot(at("2026-11-17T15:30:00Z")).period,"evening");
+ assert.equal(vietnamSlot(at("2026-11-17T16:59:00Z")).period,"evening");
+ assert.equal(vietnamSlot(at("2026-11-17T17:00:00Z")).period,null);
 });
 test("no side effects outside slot even with live flags",async()=>{
- const result=await runSlot({now:at("2026-11-17T02:00:00Z"),env,ledger:{claim:async()=>{throw Error("unexpected")}}});
+ const result=await runSlot({now:at("2026-11-17T05:00:00Z"),env,ledger:{claim:async()=>{throw Error("unexpected")}}});
  assert.equal(result.status,"OUTSIDE_SLOT");
 });
 test("claim rejected means no Cloudinary or Facebook requests",async()=>{
