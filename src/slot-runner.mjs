@@ -3,18 +3,17 @@ import {createImageBuffer} from "./image.mjs";
 import {publishFacebookPhoto,assertPublishConfig} from "./facebook-publisher.mjs";
 import {v2 as cloudinary} from "cloudinary";
 
-const MINUTE=60000;
-export function vietnamSlot(now=new Date(),{eventName="",maxDelayMinutes=180}={}) {
+export function vietnamSlot(now=new Date()) {
  if(!(now instanceof Date)||!Number.isFinite(now.getTime())) throw Error("Invalid time");
  const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Ho_Chi_Minh",
  year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(now);
  const get=k=>parts.find(x=>x.type===k)?.value;
  const date=[get("year"),get("month"),get("day")].join("-");
  const minutes=Number(get("hour"))*60+Number(get("minute"));
- // The schedule may be delayed by GitHub. Permit a bounded delay, never a future slot.
- // 06:00 -> [06:00,09:00); 19:30 -> [19:30,22:30).
- const morning=minutes>=360&&minutes<360+maxDelayMinutes;
- const evening=minutes>=1170&&minutes<1170+maxDelayMinutes;
+ // Asia/Ho_Chi_Minh: morning [06:00,12:00), evening [18:00,24:00).
+ // 12:00-17:59 is outside both slots; 00:00 belongs to the next calendar day.
+ const morning=minutes>=360&&minutes<720;
+ const evening=minutes>=1080&&minutes<1440;
  const period=morning?"morning":evening?"evening":null;
  return {date,period};
 }
